@@ -32,10 +32,16 @@ class BotScheduler:
     async def _send_morning_briefing(self):
         from bot.services.leantime import get_leantime
         from bot.handlers.text import _format_today
+        from bot.services.calendar import get_upcoming_events, format_event
         tasks = get_leantime().get_today_tasks()
         text = _format_today(tasks)
-        await self.app.bot.send_message(chat_id=self.chat_id, text=text,
-                                        parse_mode="Markdown")
+        try:
+            events = get_upcoming_events(hours=24)
+            if events:
+                text += "\n\n📅 Встречи сегодня:\n" + "\n".join(format_event(e) for e in events)
+        except Exception:
+            pass  # Calendar unavailable — skip silently
+        await self.app.bot.send_message(chat_id=self.chat_id, text=text)
 
     async def _send_kaizen_reminder(self):
         text = (
