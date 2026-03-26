@@ -3,6 +3,11 @@ from datetime import date
 from bot.config import LEANTIME_URL, LEANTIME_API_KEY, LEANTIME_INBOX_PROJECT_ID
 
 PRIORITY_MAP = {"high": "3", "medium": "2", "low": "1"}
+# Leantime status IDs: 3=New, 4=In Progress, 2=Waiting, 0=Done
+STATUS_NEW = 3
+STATUS_INPROGRESS = 4
+STATUS_WAITING = 2
+STATUS_DONE = 0
 
 
 class LeantimeClient:
@@ -28,7 +33,7 @@ class LeantimeClient:
             "description": description or "",
             "projectId": project_id or self.inbox_project_id,
             "priority": PRIORITY_MAP.get(priority, "2"),
-            "status": "new",
+            "status": STATUS_NEW,
             "tags": ",".join(tags) if tags else "",
             "type": "task",
             "acceptanceCriteria": "",
@@ -44,13 +49,13 @@ class LeantimeClient:
 
     def complete_task(self, task_id: int) -> None:
         self._call("leantime.rpc.Tickets.patchTicket",
-                   {"id": task_id, "values": {"status": "done"}})
+                   {"id": task_id, "values": {"status": STATUS_DONE}})
 
     def set_waiting(self, task_id: int, waiting_for: str) -> None:
         self._call("leantime.rpc.Tickets.patchTicket", {
             "id": task_id,
             "values": {
-                "status": "waiting",
+                "status": STATUS_WAITING,
                 "description": f"Жду ответа от: {waiting_for}",
             },
         })
