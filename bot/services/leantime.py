@@ -23,38 +23,46 @@ class LeantimeClient:
     def create_task(self, title: str, project_id: int = None,
                     priority: str = "medium", due_date: str = None,
                     description: str = "", tags: list = None) -> int:
-        params = {
+        values = {
             "headline": title,
             "description": description or "",
             "projectId": project_id or self.inbox_project_id,
             "priority": PRIORITY_MAP.get(priority, "2"),
             "status": "new",
             "tags": ",".join(tags) if tags else "",
+            "type": "task",
+            "acceptanceCriteria": "",
+            "hourRemaining": "",
+            "planHours": "",
+            "editFrom": "",
+            "editTo": due_date or "",
+            "dependingTicketId": "",
+            "milestoneid": "",
         }
-        if due_date:
-            params["dateToFinish"] = due_date
-        result = self._call("leantime.rpc.Tickets.addTicket", params)
+        result = self._call("leantime.rpc.Tickets.addTicket", {"values": values})
         return result.get("id") or result
 
     def complete_task(self, task_id: int) -> None:
         self._call("leantime.rpc.Tickets.patchTicket",
-                   {"id": task_id, "status": "done"})
+                   {"id": task_id, "values": {"status": "done"}})
 
     def set_waiting(self, task_id: int, waiting_for: str) -> None:
         self._call("leantime.rpc.Tickets.patchTicket", {
             "id": task_id,
-            "status": "waiting",
-            "description": f"Жду ответа от: {waiting_for}",
+            "values": {
+                "status": "waiting",
+                "description": f"Жду ответа от: {waiting_for}",
+            },
         })
 
     def reschedule_task(self, task_id: int, due_date: str) -> None:
         self._call("leantime.rpc.Tickets.patchTicket",
-                   {"id": task_id, "dateToFinish": due_date})
+                   {"id": task_id, "values": {"editTo": due_date}})
 
     def get_today_tasks(self) -> list:
         today = date.today().isoformat()
         result = self._call("leantime.rpc.Tickets.getAll", {
-            "dateToFinish": today,
+            "editTo": today,
             "status": "inprogress,new",
         })
         if isinstance(result, list):
