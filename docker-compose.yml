@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: assistant
+      POSTGRES_USER: assistant
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  leantime:
+    image: leantime/leantime:latest
+    environment:
+      LEAN_DB_HOST: postgres
+      LEAN_DB_USER: assistant
+      LEAN_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LEAN_DB_DATABASE: assistant
+      LEAN_APP_URL: ${LEANTIME_DASHBOARD_URL}
+    depends_on:
+      - postgres
+    volumes:
+      - leantime_data:/var/www/html/userfiles
+    restart: unless-stopped
+
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      LEANTIME_URL: http://leantime:80
+      DATABASE_URL: postgresql://assistant:${POSTGRES_PASSWORD}@postgres:5432/assistant
+    depends_on:
+      - postgres
+      - leantime
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_data:/etc/letsencrypt
+    depends_on:
+      - leantime
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  leantime_data:
+  certbot_data:
