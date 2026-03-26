@@ -46,34 +46,43 @@ async def _handle_snooze_duration(update, context, duration_text: str):
 
 
 async def _process_message(update, context, text: str):
-    intent = classify_message(text)
+    try:
+        intent = classify_message(text)
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Не смог разобрать сообщение: {e}")
+        return
+
     lt = get_leantime()
 
     if intent["intent"] == "new_task":
-        task_id = lt.create_task(
-            title=intent["title"],
-            description=intent.get("description", ""),
-            priority=intent.get("priority", "medium"),
-            due_date=intent.get("due_date"),
-            tags=intent.get("tags", []),
-        )
+        try:
+            task_id = lt.create_task(
+                title=intent["title"],
+                description=intent.get("description", ""),
+                priority=intent.get("priority", "medium"),
+                due_date=intent.get("due_date"),
+                tags=intent.get("tags", []),
+            )
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ Задача не сохранилась в Leantime: {e}")
+            return
+
         priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(
             intent.get("priority", "medium"), "🟡"
         )
-        msg = (
-            f"📋 *{intent['title']}*\n"
-            f"   Проект: {intent.get('project', 'Входящие')}\n"
-            f"   Приоритет: {priority_emoji} {intent.get('priority', 'medium')}\n"
-        )
+        title = intent["title"]
+        project = intent.get("project", "Входящие")
+        priority = intent.get("priority", "medium")
+        msg = f"📋 {title}\n   Проект: {project}\n   Приоритет: {priority_emoji} {priority}"
         if intent.get("due_date"):
-            msg += f"   Срок: {intent['due_date']}\n"
+            msg += f"\n   Срок: {intent['due_date']}"
         if intent.get("subtasks"):
-            msg += "   Подзадачи:\n" + "\n".join(f"   • {s}" for s in intent["subtasks"])
+            msg += "\n   Подзадачи:\n" + "\n".join(f"   • {s}" for s in intent["subtasks"])
 
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("✅ Добавлено", callback_data=f"confirm_{task_id}"),
         ]])
-        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=keyboard)
+        await update.message.reply_text(msg, reply_markup=keyboard)
 
     elif intent["intent"] == "complete":
         task = lt.get_last_active_task()
